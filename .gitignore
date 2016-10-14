@@ -1,0 +1,13 @@
+# python files
+*.pyc
+__pycache__
+
+# ide files
+.idea
+.cache
+
+# macOS files
+.DS_Store
+
+# Sphinx files
+doc/_build
