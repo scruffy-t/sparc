@@ -8,7 +8,7 @@ def readme():
 
 setup(
     name='sparc',
-    version='0.1.0',
+    version='0.1.0a1',
     description='A framework to create, edit, visualize, and serialize scientific parameter collections',
     long_description=readme(),
 

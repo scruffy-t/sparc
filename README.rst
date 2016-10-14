@@ -1,12 +1,12 @@
 sparc
 =====
 
-**sparc**, an acronym for **S**cientific **PAR**ameter **C**ollection, is a Python module that provides several classes
+**sparc**, an acronym for Scientific PARameter Collection, is a Python module that provides several classes
 to *create*, *edit*, *visualize*, and *serialize* many kinds of (scientific) parameter structures. In the world of
 **sparc**, a parameter is a name-value pair associated with an optional physical unit. Parameters can be nested by using
 the ``ParamSet`` or ``ParamGroup`` container classes. Values (and units) of parameters can also depend on other parameters
 by using the ``DependentParam`` class, thereby emulating spreadsheet-like behavior. For more examples on how **sparc** can
-be used, please refer to the #Examples section.
+be used, please refer to the examples_ section.
 
 **sparc** is developed by Tobias Schruff <tobias.schruff@gmail.com>.
 
@@ -30,6 +30,8 @@ If you already have all dependencies installed, the easiest way to install **par
 
     pip install sparc
 
+
+.. _examples:
 Examples
 --------
 
