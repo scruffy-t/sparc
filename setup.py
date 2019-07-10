@@ -1,4 +1,5 @@
 from setuptools import setup
+from sparc import __version__
 
 
 def readme():
@@ -8,7 +9,7 @@ def readme():
 
 setup(
     name='sparc',
-    version='0.1.0a1',
+    version=__version__,
     description='A framework to create, edit, visualize, and serialize scientific parameter collections',
     long_description=readme(),
 
@@ -16,30 +17,24 @@ setup(
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: BSD License',
 
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5'
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8'
     ],
 
-    keywords='scientific parameters',
-    url='https://github.com/scruffy-t/sparc',
+    keywords='scientific parameters GUI',
+    url='https://github.com/tschruff/sparc',
     author='Tobias Schruff',
     author_email='tobias.schruff@gmail.com',
     license='BSD',
     packages=['sparc'],
-    install_requires=['pint'],
+    # install_requires=['pint'],
 
-    # we use "nose" for tests
     # $ python setup.py test
     # to execute the test suite
-    test_suite='nose.collector',
-    tests_require=['nose'],
+    test_suite='tests',
 
-    include_package_data=True,
+    include_package_data=False,
     zip_safe=False
 )

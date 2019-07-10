@@ -1,9 +1,17 @@
+HAVE_QT = False
+
 try:
-    import PyQt4
-    HAVE_PYQT4 = True
+    import PyQt5
+    HAVE_QT = True
 except ImportError:
-    HAVE_PYQT4 = False
+    HAVE_QT = False
 
-from .model import ParamModel
+__all__ = ['HAVE_QT']
 
-__all__ = ['ParamModel']
+if HAVE_QT:
+    from .delegate import ParamModelDelegate
+    from .model import ParamModel
+    from .settings import *
+    from .widgets import ParamTableWidget
+    from sparc.gui.widgets.tree import ParamTreeWidget
+    __all__ = __all__.extend(['ParamModelDelegate', 'ParamModel', 'ParamTableWidget', 'ParamTreeWidget'])

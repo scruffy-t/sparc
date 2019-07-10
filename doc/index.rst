@@ -17,9 +17,6 @@ Contents:
 .. automodule:: sparc.core.param
    :members:
 
-.. automodule:: sparc.core.container
-   :members:
-
 
 Indices and tables
 ==================

@@ -1,122 +1,236 @@
-from PyQt4 import QtCore, QtGui
-from sparc.core import *
+from PyQt5 import QtCore, QtGui
 
-import pint
+from sparc.core import *
+from .settings import DEFAULT_SETTINGS as SETTINGS
+
+
+class ParamItem(object):
+
+    def __init__(self, node):
+        if not isinstance(node, (ParamNode, ParamGroupNode)):
+            raise TypeError('node must be ParamNode or ParamGroupNode instance')
+        self.node = node
+
+    def data(self, column, role, **context):
+
+        if role == QtCore.Qt.CheckStateRole:
+            if column == 1:  # value column
+                if isinstance(self.node, ParamGroupNode):
+                    return None
+                if self.node.type() is bool:
+                    return QtCore.Qt.Checked if self.node.value() else QtCore.Qt.Unchecked
+
+        if role == QtCore.Qt.DisplayRole:
+            if column == 0:  # name column
+                return self.node.display_name()
+            elif column == 1:  # value column
+                if isinstance(self.node, ParamGroupNode):
+                    return None
+
+                if self.node.is_expression():
+                    try:
+                        value = self.node.value(**context)
+                    except Exception as e:
+                        value = str(e)
+                else:
+                    value = self.node.value()
+
+                value_type = type(value)
+
+                if value_type == QtGui.QColor:
+                    return None
+                elif value_type is float:
+                    return '{v:.{d}f}'.format(v=value, d=SETTINGS.value('decimals'))
+                elif value_type is not bool:
+                    return str(value)
+
+        elif role == QtCore.Qt.EditRole:
+            if column == 0:
+                return self.node.display_name()
+            elif column == 1:
+                if isinstance(self.node, ParamGroupNode):
+                    return None
+                return self.node.raw_value()
+
+        elif role == QtCore.Qt.TextAlignmentRole:
+            if column == 1:
+                return QtCore.Qt.AlignHCenter
+
+        elif role == QtCore.Qt.BackgroundColorRole:
+            if isinstance(self.node, ParamGroupNode):
+                return QtGui.QBrush(QtCore.Qt.lightGray)
+            elif column == 1 and self.node.type() == QtGui.QColor:
+                return QtGui.QBrush(self.node.value())
+
+        elif role == QtCore.Qt.ForegroundRole:
+            if isinstance(self.node, ParamNode) and not self.node.is_editable():
+                return QtGui.QColor(QtCore.Qt.darkGray)
+
+        return None
+
+    def setData(self, column, value, role):
+
+        if role == QtCore.Qt.EditRole:
+
+            # set name
+            if column == 0:
+                # --- Disabled due to ExpressionParamNode issues ---
+                # we have to be careful here because we might invalidate an existing
+                # ExpressionParamNode by changing a variable name
+                # node.setName(unicode(value))
+                # return True
+                pass
+
+            # set value
+            elif column == 1:
+                self.node.set_value(value)
+                return True
+
+        elif role == QtCore.Qt.CheckStateRole:
+
+            value = True if value == QtCore.Qt.Checked else False
+            self.node.set_value(value)
+            return True
+
+        return False
 
 
 class ParamModel(QtCore.QAbstractItemModel):
 
-    def __init__(self, param, parent=None):
+    # TODO: Catch all exceptions and emit them as errorMessage
+    errorMessage = QtCore.pyqtSignal(str)
+
+    def __init__(self, root=None, parent=None):
+        """
+        """
         QtCore.QAbstractItemModel.__init__(self, parent)
-        self._root = ParamSet('root')
-        self._root.add_child(param)
+        self._context = {}
+        self._root = root or ParamGroupNode('root')
 
     def columnCount(self, parentIndex=None, *args, **kwargs):
-        return 3
+        """
+        """
+        if parentIndex.isValid() and parentIndex.column() != 0:
+            return 0
+        return 2
 
     def data(self, index, role=None):
+        """
+        """
         if not index.isValid():
             return None
 
         node = self.nodeFromIndex(index)
-        column = index.column()
+        item = ParamItem(node)
 
-        if role == QtCore.Qt.DisplayRole or role == QtCore.Qt.EditRole:
-            if column == 0:
-                return node.display_name()
-            elif column == 1 and isinstance(node, AbstractParam):
-                if role == QtCore.Qt.EditRole and isinstance(node, DependentParam):
-                    return node.expr()
-                try:
-                    return node.value()
-                except Exception as e:
-                    return e.message
-            elif column == 2 and isinstance(node, AbstractParam):
-                try:
-                    return node.unit()
-                except pint.DimensionalityError as e:
-                    return e.message
-
-        elif role == QtCore.Qt.TextAlignmentRole:
-            if column != 0:
-                return QtCore.Qt.AlignHCenter
-
-        elif role == QtCore.Qt.BackgroundColorRole:
-            if isinstance(node, DependentParam) and not node.is_valid():
-                return QtGui.QBrush(QtCore.Qt.red)
-
-        return None
+        return item.data(index.column(), role, **self._context)
 
     def flags(self, index):
-        node = self.nodeFromIndex(index)
+        """
+        """
         f = QtCore.QAbstractItemModel.flags(self, index)
+        if not index.isValid():
+            return f
 
-        if index.column() != 0 and isinstance(node, AbstractParam):
+        if not self.isEditable(index):
+            return f
+
+        node = self.nodeFromIndex(index)
+        assert isinstance(node, ParamNode)
+
+        if node.type() == bool:
+            return f | QtCore.Qt.ItemIsUserCheckable
+        else:
             return f | QtCore.Qt.ItemIsEditable
-        return f
-
-    def hasChildren(self, parentIndex=None, *args, **kwargs):
-        node = self.nodeFromIndex(parentIndex)
-        if isinstance(node, AbstractParam):
-            return False
-        return True
 
     def headerData(self, section, orientation, role=None):
+        """
+        """
         if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
-            return ['Name', 'Value', 'Unit'][section]
+            return ['Name', 'Value'][section]
         return None
 
     def index(self, row, column, parentIndex=None, *args, **kwargs):
-        if not self.hasIndex(row, column, parentIndex):
+        """
+        """
+        if parentIndex.isValid() and parentIndex.column() != 0:
             return QtCore.QModelIndex()
 
         parent = self.nodeFromIndex(parentIndex)
         return self.createIndex(row, column, parent.child(row))
 
     def nodeFromIndex(self, index):
+        """
+        """
         return index.internalPointer() if index.isValid() else self._root
 
     def parent(self, index=None):
+        """
+        """
         if index.isValid():
             parent = self.nodeFromIndex(index).parent()
-            if parent != self._root:
+            if parent is not None and parent != self._root:
                 return self.createIndex(parent.index(), 0, parent)
         return QtCore.QModelIndex()
 
+    def root(self):
+        """
+        """
+        return self._root
+
     def rowCount(self, parentIndex=None, *args, **kwargs):
-        return len(self.nodeFromIndex(parentIndex))
+        """
+        """
+        if parentIndex.isValid() and parentIndex.column() != 0:
+            return 0
+        node = self.nodeFromIndex(parentIndex)
+        if isinstance(node, ParamNode):
+            return 0
+        return node.child_count()
+
+    def isName(self, index):
+        return index.column() == 0
+
+    def isValue(self, index):
+        return index.column() == 1
+
+    def isGroup(self, index):
+        return isinstance(self.nodeFromIndex(index), ParamGroupNode)
+
+    def isLeaf(self, index):
+        return isinstance(self.nodeFromIndex(index), ParamNode)
+
+    def isEditable(self, index):
+        if not self.isLeaf(index):
+            return False
+
+        node = self.nodeFromIndex(index)
+        assert isinstance(node, ParamNode)
+
+        return node.is_editable()
+
+    def setExpressionContext(self, context):
+        self._context = context
+        # TODO: emit dataChanged for expression nodes
 
     def setData(self, index, value, role=None):
+        """
+        """
         if not index.isValid():
-            return None
+            return False
 
-        value = value.toPyObject()
         node = self.nodeFromIndex(index)
+        item = ParamItem(node)
 
-        if role == QtCore.Qt.EditRole:
-            if index.column() == 0:
-                # TODO: Disabled due to DependendParam issues
-                # we have to be careful here because we might invalidate existing
-                # DependendParams by changing a variable name
-                # node.setName(unicode(value))
-                # return True
-                pass
-            # set Param value
-            if index.column() == 1 and isinstance(node, Param):
-                if node.is_valid_value(value):
-                    node.set_value(value)
-                    return True
-                return False
-            # set DependendParam expression
-            if index.column() == 1 and isinstance(node, DependentParam):
-                value = str(value)
-                if node.is_valid_expr(value):
-                    node.set_expr(value)
-                    return True
-                return False
-            # set Param unit
-            if index.column() == 2 and isinstance(node, Param):
-                node.set_unit(value)
-                return True
+        try:
+            return item.setData(index.column(), value, role)
+        except ValueError as e:
+            self.errorMessage.emit(str(e))
+            return False
 
-        return False
+    def setRoot(self, root):
+        """
+        """
+        self.beginResetModel()
+        self._root = root
+        self.endResetModel()

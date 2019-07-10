@@ -1,16 +1,14 @@
-from .abstract import AbstractParamNode, AbstractParam
-from .container import ParamSet, ParamGroup
+from .node import AbstractLeafNode, AbstractNode
 from .interval import Interval
-from .param import Param, DependentParam
-from .signals import Signal
+from .param import ParamNode, ParamGroupNode
 from .types import Types
 
 
 __all__ = [
-    'AbstractParamNode', 'AbstractParam',
-    'ParamSet', 'ParamGroup',
+    'AbstractLeafNode',
+    'AbstractNode',
     'Interval',
-    'Param', 'DependentParam',
-    'Signal',
+    'ParamNode',
+    'ParamGroupNode',
     'Types'
 ]

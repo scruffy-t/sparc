@@ -1,11 +1,13 @@
+# interval.py
+
+# system modules
 import sys
 import operator
 import re
 
 
 class Interval(object):
-    """ Represents a real number interval.
-
+    """Represents an open/closed real number interval.
     """
 
     Open, Closed = range(2)
@@ -13,12 +15,14 @@ class Interval(object):
 
     def __init__(self, *args, **kwargs):
         """
-        :param args:
-        :param kwargs:
+
+        Parameters
+        ----------
+        args:
+        kwargs:
             - min_value
             - max_value
             - bounds
-        :return:
         """
         args = list(args)
 
@@ -28,7 +32,8 @@ class Interval(object):
         else:
             self.min = args[0] if len(args) > 0 else kwargs['min_value']
             self.max = args[1] if len(args) > 1 else kwargs['max_value']
-            bounds   = args[2] if len(args) > 2 else kwargs.get('bounds', (self.Open, self.Open))
+            bounds = args[2] if len(args) > 2 else kwargs.get('bounds', (self.Open, self.Open))
+
         self.min_bound = bounds[0]
         self.max_bound = bounds[1]
 
@@ -66,10 +71,6 @@ class Interval(object):
     def is_valid(self):
         return self.max > self.min
 
-    #############################################
-    # PRIVATE MEMBER METHODS
-    #############################################
-
     def __init_from_str(self, interval):
         pattern = r'[\[\(][-+]?[0-9]+(.[0-9]*)?\s?,\s?[-+]?[0-9]+(.[0-9]*)?[\]\)]'
         if not re.match(pattern, interval):
@@ -89,6 +90,5 @@ class Interval(object):
             return self.Open
         raise ValueError('Unexpected bounds str: %s' % bounds_str)
 
-    @staticmethod
-    def inf():
-        return Interval(-sys.maxsize - 1, sys.maxsize)
+
+INFINITE = Interval(-sys.maxsize - 1, sys.maxsize)

@@ -1,10 +1,10 @@
-from PyQt4 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class ParamTableWidget(QtGui.QTableWidget):
+class ParamTableWidget(QtWidgets.QTableWidget):
 
     def __init__(self, parent=None):
-        QtGui.QTableWidget.__init__(self, parent)
+        QtWidgets.QTableWidget.__init__(self, parent)
         self._keys = ()
         self.verticalHeader().hide()
 
@@ -15,7 +15,7 @@ class ParamTableWidget(QtGui.QTableWidget):
 
         units = list(units) + ['-' for _ in range(len(keys)-len(units))]
         labels = ['%s [%s]' % (key.replace('_', ' ').title(), unit) for key, unit in zip(keys, units)]
-        QtGui.QTableWidget.setHorizontalHeaderLabels(self, labels)
+        QtWidgets.QTableWidget.setHorizontalHeaderLabels(self, labels)
 
         # TODO: repopulate table
 
@@ -26,8 +26,8 @@ class ParamTableWidget(QtGui.QTableWidget):
         row = self.rowCount()
         self.setRowCount(row + 1)
         for column, key in enumerate(self.paramKeys()):
-            text = param[key].value
-            item = QtGui.QTableWidgetItem(str(text))
+            value = param[key].value()
+            item = QtWidgets.QTableWidgetItem(str(value))
             self.setItem(row, column, item)
 
     def addParamSets(self, params):
