@@ -1,16 +1,21 @@
 from unittest import TestCase
-from pickle import dumps, loads
-from sparc.core import ParamGroupNode, Interval
+import pickle
+
+from sparc.core import ParamGroupNode, Interval, dumps, loads
+
+
+def node():
+    p = ParamGroupNode('quiche_loraine')
+    ingredients = p.add_child('ingredients')
+    ingredients.add_child('servings', value=4, type=int, validator=Interval(0, 10))
+    ingredients.add_child('milk', value='=0.1 * servings')
+    return p
 
 
 class TestIO(TestCase):
 
-    def test(self):
+    def test_pickle(self):
+        pickle.loads(pickle.dumps(node()))
 
-        p = ParamGroupNode('quiche_loraine')
-
-        ingredients = p.add_child('ingredients')
-        ingredients.add_child('servings', value=4, type=int, validator=Interval(0, 10))
-        ingredients.add_child('milk', value='=0.1 * servings')
-
-        loads(dumps(p))
+    def test_json(self):
+        loads(dumps(node()))

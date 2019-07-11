@@ -1,15 +1,9 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (C) 2018 Tobias Schruff (tobias.schruff -at- gmail.com)
-# All rights reserved.
-#
-# This software is licensed as described in the file COPYING, which
-# you should have received as part of this distribution.
-#
 from .node import AbstractNode, AbstractLeafNode
 from .types import Types
 
 import re
+
+__all__ = ['ParamGroupNode', 'ParamNode', 'param']
 
 # TODO: add configurable display names, help text (for tooltips)
 
@@ -64,7 +58,7 @@ class ParamGroupNode(AbstractNode):
         elif isinstance(first, (ParamNode, ParamGroupNode)):
             node = first
         else:
-            raise TypeError('Unexpected parameter type!')
+            raise TypeError('unexpected parameter type {}'.format(type(first)))
 
         AbstractNode.add_child(parent, node)
         return node
@@ -126,25 +120,27 @@ class ParamNode(AbstractLeafNode):
         ----------
         name: str
             The node name.
-        value:
+        value: Any
             The node's initial value.
         type: str or type
-            The type of the node value or a key (str) that is registered with the Types registry.
+            The type of the node value or a type name (str) that is registered with the Types registry.
         editable: bool
             Specifies whether the node will be editable. As default, nodes are editable.
         validator: tuple, list, Interval, None, or custom validator
             - None to disable value checking
             - Collection (e.g. tuple, list, set, etc.) for enumerated values
-            - Interval for int or float values within a limited range
+            - Interval, e.g. for int, float, time values within a limited continuous range
             - custom validator, must implement __contains__ (checking is done via: "value in validator")
         parent: AbstractNode
             The parameter's parent node.
         """
         AbstractLeafNode.__init__(self, name, parent)
 
-        self._raw = None  # raw value, will be set below
+        self._raw = None  # the node's raw value, will be set below (set_value)
+        self._fget = None
+        self._fset = None
         self._edit = True
-        self._vars = []  # stores variable names if self._raw is an expression
+        self._vars = []  # stores variable names if node is an expression
 
         # if self.__is_expression(value):
         #     # type not allowed
@@ -154,19 +150,40 @@ class ParamNode(AbstractLeafNode):
         #         raise TypeError('validator not allowed with expression')
 
         # type parameter was set explicitly
-        if type is not None:
+        if isinstance(type, str):
             self._t = Types.get_type(type)
+        elif type is not None:
+            self._t = type
         # NOTE: don't infer type automatically, i.e. with self._t = type(value)
         # because we also support dynamic parameter types
         else:
             self._t = None
 
-        if validator and not hasattr(validator, '__contains__'):
-            raise AttributeError('Validator must implement __contains__')
+        if validator is not None and not hasattr(validator, '__contains__'):
+            raise AttributeError(f'validator {validator:!r} does not implement __contains__')
 
         self._validator = validator  # set validator before value to enable checking
-        self.set_value(value)        # set value and check if valid
+        if hasattr(value, '__call__'):
+            self._fget = value
+        else:
+            self.set_value(value)  # convert, check, and set value
         self.set_editable(editable)  # set editable after value to enable value initialization
+
+    def __get__(self, obj, owner):
+        if obj is None:
+            return self
+        if self.is_descriptor():
+            return self._fget(obj)
+        raise AttributeError('param node is not readable')
+
+    def __set__(self, obj, value):
+        if not self.is_editable():
+            raise AttributeError('param node is not editable')
+        # TODO: do all the checking that we normally do in set_value
+        self._fset(obj, value)
+
+    def is_descriptor(self):
+        return self._fget is not None
 
     def is_editable(self):
         """Returns a bool indicating whether the underlying param node can be edited."""
@@ -176,7 +193,8 @@ class ParamNode(AbstractLeafNode):
         """Returns a bool indicating whether the param is an expression."""
         return self.__is_expression(self._raw)
 
-    def is_valid_expression(self, expr):
+    @staticmethod
+    def is_valid_expression(expr):
         # TODO: Implement is_valid_expression
         return True
 
@@ -203,6 +221,17 @@ class ParamNode(AbstractLeafNode):
         """
         return self._raw
 
+    def setter(self, fset):
+        """Decorator function.
+
+        :param fset:
+        :return:
+        """
+        editable = fset is not None
+        self.set_editable(editable)
+        self._fset = fset
+        return self
+
     def set_editable(self, editable):
         """
         """
@@ -225,15 +254,14 @@ class ParamNode(AbstractLeafNode):
         if not self.is_editable():
             raise AttributeError('Node %s is not editable!' % str(self))
 
-        # may raise a ValueError
+        # may convert the value to the appropriate type
         self._raw = self.validate_value(value)
 
-        # reset variables
+        # reset expression variables
         self._vars = []
 
-        # value is an expression
+        # extract variable names if value is an expression
         if self.__is_expression(value):
-            # extract variable names if value is an expression
             expr = value.replace('= ', '')
             for m in re.finditer(self.VarPattern, expr):
                 self._vars.append(m.group())
@@ -243,7 +271,7 @@ class ParamNode(AbstractLeafNode):
         return self._t
 
     def validate_value(self, value):
-        """Returns the validated value.
+        """Returns the validated value or raises an exception if the value is not valid.
 
         Notes
         -----
@@ -251,18 +279,30 @@ class ParamNode(AbstractLeafNode):
         - it has the node's data type (if it was set explicitly)
         - it is contained in the Param's values range,
           i.e. "value in validator" returns True
+
+        Raises
+        ------
+        ValueError:
+        TypeError:
         """
         if self.__is_expression(value):
             if self.is_valid_expression(value):
                 return value
             raise ValueError('invalid expression')
 
-        # TODO: validate expression result
+        value_type = type(value)
 
-        # type was set and value cannot be converted to type
+        # type was set
         if self._t is not None:
-            # may raise a ValueError
-            value = self._t(value)
+            # deserialize string value only if node type is not str
+            if isinstance(value, str) and self._t != str:
+                value = Types.deserialize(value, self._t)
+            elif value_type != self._t:
+                # try to use the type directly to convert value
+                try:
+                    value = self._t(value)
+                except Exception:
+                    raise TypeError(f'value {value} has invalid type {value_type}')
 
         # validator has not been set
         if self._validator is None:
@@ -322,3 +362,17 @@ class ParamNode(AbstractLeafNode):
         """
         """
         return isinstance(value, str) and value.startswith('=')
+
+
+class param(object):
+
+    def __init__(self, name=None, type=None, validator=None, parent=None):
+        self.name = name
+        self.type = type
+        self.validator = validator
+        self.parent = parent
+
+    def __call__(self, fget):
+        name = self.name or fget.__name__
+        return ParamNode(name, value=fget, type=self.type, editable=False,
+                         validator=self.validator, parent=self.parent)

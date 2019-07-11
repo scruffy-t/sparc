@@ -2,7 +2,6 @@
 
 """
 # system modules
-import sys
 import collections
 
 # 3rd party modules
@@ -13,6 +12,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from sparc.core import *
 from .settings import DEFAULT_SETTINGS as SETTINGS
 from .model import ParamModel
+
+__all__ = ['ParamModelDelegate']
 
 
 class ParamModelDelegate(QtWidgets.QStyledItemDelegate):
@@ -50,7 +51,7 @@ class ParamModelDelegate(QtWidgets.QStyledItemDelegate):
                     # TODO: implement color combo box
                     editor = QtWidgets.QComboBox(parent)
                     for row, valid_value in enumerate(validator):
-                        editor.addItem(valid_value.name(), valid_value)
+                        editor.addItem('', valid_value)
                         editor.setItemData(row, valid_value, QtCore.Qt.BackgroundColorRole)
                     editor.setCurrentText(node.value().name())
                     return editor

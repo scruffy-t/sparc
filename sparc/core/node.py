@@ -81,6 +81,9 @@ class AbstractLeafNode(object):
             return False
         return len(self.parent()) > 1
 
+    def has_children(self):
+        return False
+
     def iter_siblings(self):
         """Iterates over all siblings."""
         if self.parent() is None:

@@ -6,12 +6,9 @@ try:
 except ImportError:
     HAVE_QT = False
 
-__all__ = ['HAVE_QT']
-
 if HAVE_QT:
-    from .delegate import ParamModelDelegate
-    from .model import ParamModel
+    from .delegate import *
+    from .model import *
     from .settings import *
-    from .widgets import ParamTableWidget
-    from sparc.gui.widgets.tree import ParamTreeWidget
-    __all__ = __all__.extend(['ParamModelDelegate', 'ParamModel', 'ParamTableWidget', 'ParamTreeWidget'])
+    from .types import *
+    from .widgets import *

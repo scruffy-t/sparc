@@ -1,7 +1,11 @@
+import pickle
+
 from PyQt5 import QtCore, QtGui
 
 from sparc.core import *
 from .settings import DEFAULT_SETTINGS as SETTINGS
+
+__all__ = ['ParamModel']
 
 
 class ParamItem(object):
@@ -99,6 +103,7 @@ class ParamModel(QtCore.QAbstractItemModel):
 
     # TODO: Catch all exceptions and emit them as errorMessage
     errorMessage = QtCore.pyqtSignal(str)
+    valueChanged = QtCore.pyqtSignal(str, object)
 
     def __init__(self, root=None, parent=None):
         """
@@ -150,43 +155,20 @@ class ParamModel(QtCore.QAbstractItemModel):
             return ['Name', 'Value'][section]
         return None
 
-    def index(self, row, column, parentIndex=None, *args, **kwargs):
+    def index(self, row, column, parent=None, *args, **kwargs):
         """
+
+        Parameters
+        ----------
+        row: int
+        column: int
+        parent: QModelIndex
         """
-        if parentIndex.isValid() and parentIndex.column() != 0:
+        if parent.isValid() and parent.column() != 0:
             return QtCore.QModelIndex()
 
-        parent = self.nodeFromIndex(parentIndex)
-        return self.createIndex(row, column, parent.child(row))
-
-    def nodeFromIndex(self, index):
-        """
-        """
-        return index.internalPointer() if index.isValid() else self._root
-
-    def parent(self, index=None):
-        """
-        """
-        if index.isValid():
-            parent = self.nodeFromIndex(index).parent()
-            if parent is not None and parent != self._root:
-                return self.createIndex(parent.index(), 0, parent)
-        return QtCore.QModelIndex()
-
-    def root(self):
-        """
-        """
-        return self._root
-
-    def rowCount(self, parentIndex=None, *args, **kwargs):
-        """
-        """
-        if parentIndex.isValid() and parentIndex.column() != 0:
-            return 0
-        node = self.nodeFromIndex(parentIndex)
-        if isinstance(node, ParamNode):
-            return 0
-        return node.child_count()
+        parent_node = self.nodeFromIndex(parent)
+        return self.createIndex(row, column, parent_node.child(row))
 
     def isName(self, index):
         return index.column() == 0
@@ -209,9 +191,60 @@ class ParamModel(QtCore.QAbstractItemModel):
 
         return node.is_editable()
 
+    def load(self, filename, binary=True):
+        if binary:
+            with open(filename, 'rb') as spc:
+                root = pickle.load(spc)
+                self.setRoot(root)
+        else:
+            with open(filename, 'r') as spj:
+                root = load(spj)
+                self.setRoot(root)
+
+    def nodeFromIndex(self, index):
+        """
+        """
+        return index.internalPointer() if index.isValid() else self._root
+
+    def parent(self, index=None):
+        """
+        """
+        if index.isValid():
+            parent = self.nodeFromIndex(index).parent()
+            if parent is not None and parent != self._root:
+                return self.createIndex(parent.index(), 0, parent)
+        return QtCore.QModelIndex()
+
+    def root(self):
+        """
+        """
+        return self._root
+
+    def rowCount(self, parent=None, *args, **kwargs):
+        """
+
+        Parameters
+        ----------
+        parent: QModelIndex
+        """
+        if parent.isValid() and parent.column() != 0:
+            return 0
+        node = self.nodeFromIndex(parent)
+        if isinstance(node, ParamNode):
+            return 0
+        return node.child_count()
+
+    def save(self, filename, binary=True):
+        if binary:
+            with open(filename, 'wb') as spc:
+                pickle.dump(self.root(), spc)
+        else:
+            with open(filename, 'w') as spj:
+                dump(self.root(), spj, indent=2)
+
     def setExpressionContext(self, context):
         self._context = context
-        # TODO: emit dataChanged for expression nodes
+        # TODO: init re-evaluation of expression nodes
 
     def setData(self, index, value, role=None):
         """
@@ -223,10 +256,15 @@ class ParamModel(QtCore.QAbstractItemModel):
         item = ParamItem(node)
 
         try:
-            return item.setData(index.column(), value, role)
+            success = item.setData(index.column(), value, role)
         except ValueError as e:
             self.errorMessage.emit(str(e))
-            return False
+            success = False
+
+        if role in (QtCore.Qt.EditRole, QtCore.Qt.CheckStateRole) and success:
+            self.valueChanged.emit(node.absolute_name(), node.value())
+
+        return success
 
     def setRoot(self, root):
         """

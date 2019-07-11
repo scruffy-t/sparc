@@ -1,5 +1,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+__all__ = ['ParamTableWidget']
+
 
 class ParamTableWidget(QtWidgets.QTableWidget):
 

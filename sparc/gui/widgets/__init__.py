@@ -1,3 +1,2 @@
-from .table import ParamTableWidget
-
-__all__ = ['ParamTableWidget']
+from .table import *
+from .tree import *
