@@ -45,16 +45,16 @@ class ParamGroupNode(AbstractNode):
         if isinstance(first, str):
 
             # find parent node
-            parent_name, child_name = AbstractNode.split_name(first)
+            parent_name, args[0] = AbstractNode.split_name(first)
+
             if parent_name != '':
                 parent = self.child(parent_name)
 
             # if there is only one parameter given it must be a group node
             if len(args) + len(kwargs) == 1:
-                node = ParamGroupNode(child_name)
+                node = ParamGroupNode(args[0])
             else:
-                args = args[1:]
-                node = ParamNode(child_name, *args, **kwargs)
+                node = ParamNode(*args, **kwargs)
 
         # parameter is a node already
         elif isinstance(first, (ParamNode, ParamGroupNode)):
@@ -158,16 +158,15 @@ class ParamNode(AbstractLeafNode):
         elif type is not None:
             self._t = type
 
-        # check validator
-        if validator is not None and not hasattr(validator, '__contains__'):
-            raise AttributeError(f'validator {validator:!r} does not implement __contains__')
-        self._validator = validator  # set validator before value to enable checking
+        self._validator = None
+        # set validator before value to enable checking
+        self.set_validator(validator)
 
         # TODO: how to handle fget/fset if classmethod or staticmethod?
 
         if fget is not None:
             if not isinstance(fget, (types.MethodType, types.FunctionType)):
-                raise TypeError('fget must be None or a method/function')
+                raise TypeError('fget must be None or a method/function, not {}'.format(type(fget)))
 
             self._get = fget
         else:
@@ -175,7 +174,7 @@ class ParamNode(AbstractLeafNode):
 
         if fset is not None:
             if not isinstance(fset, (types.MethodType, types.FunctionType)):
-                raise TypeError('fset must be None or a method/function')
+                raise TypeError('fset must be None or a method/function, not {}'.format(type(fset)))
 
         self._set = fset
         self._edit = True
@@ -229,7 +228,7 @@ class ParamNode(AbstractLeafNode):
         # TODO: what if _get is a staticmethod?
         return isinstance(self._get, types.FunctionType)
 
-    def raw_value(self):
+    def raw_value(self, obj=None):
         """Returns the node's raw value.
 
         Notes
@@ -237,6 +236,11 @@ class ParamNode(AbstractLeafNode):
         The raw_value of a node must not be equal to the value. E.g. in case
         of an expression node, the raw value is a str instance.
         """
+        if self.is_descriptor():
+            if self.is_unbound():
+                return self._get(obj)
+            else:
+                return self._get()
         return self._get
 
     def setter(self, fset):
@@ -248,6 +252,11 @@ class ParamNode(AbstractLeafNode):
         """
         """
         self._edit = editable
+
+    def set_validator(self, validator):
+        if validator is not None and not hasattr(validator, '__contains__'):
+            raise AttributeError(f'validator {validator:!r} does not implement __contains__')
+        self._validator = validator
 
     def set_value(self, value, obj=None):
         """Sets the node value.
@@ -270,8 +279,8 @@ class ParamNode(AbstractLeafNode):
         # check if value confirms to the value restrictions
         # imposed by type and validator
         # but only is value is not an expression
-        # expressions are check whether they are valid on upon
-        # access, i.e. value() is called
+        # expressions are check whether they are valid only upon
+        # access, i.e. when value() is called
         if not self.__is_expression(value):
             # may convert the value to the appropriate type
             # or raise an Error (ValueError or TypeError) if value
@@ -291,9 +300,10 @@ class ParamNode(AbstractLeafNode):
         """Returns the node value data type or None if type has not been set."""
         return self._t
 
-    def expression_vars(self, expr):
+    @staticmethod
+    def expression_vars(expr):
         expr = expr.replace('= ', '')
-        return [m.group() for m in re.finditer(self.VarPattern, expr)]
+        return [m.group() for m in re.finditer(ParamNode.VarPattern, expr)]
 
     def __validate_value(self, value):
         """Returns the validated value or raises an exception if the value is not valid.
@@ -337,22 +347,16 @@ class ParamNode(AbstractLeafNode):
 
         return value
 
-    def value(self, *args, obj=None, context=None, **kwargs):
+    def value(self, obj=None, context=None):
         """Returns the node value.
 
         Parameters
         ----------
         obj: object
         context: mapping
-            The expression context provides external variable values.
+            The context provides values for external expression variables.
         """
-        if self.is_descriptor():
-            if self.is_unbound():
-                value = self._get(obj, *args, **kwargs)
-            else:
-                value = self._get(*args, **kwargs)
-        else:
-            value = self._get
+        value = self.raw_value(obj)
 
         if self.__is_expression(value):
             value = self.__eval_expression(value, obj=obj, context=context)

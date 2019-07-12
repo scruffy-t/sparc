@@ -68,12 +68,14 @@ class TestDecorators(unittest.TestCase):
 
     def test_unbound_descriptor(self):
 
+        factor = 4
+
         class Bar(object):
 
             def __init__(self, v):
                 self._v = v
 
-            def expression(self, factor):
+            def expression(self):
                 return f'= {factor} * value'
 
             def value(self):
@@ -116,5 +118,4 @@ class TestDecorators(unittest.TestCase):
         group = ParamGroupNode('group')
         group.add_children([p1, p2])
 
-        factor = 4
-        self.assertEqual(p2.value(obj=b, factor=factor), factor * p1.value(obj=b))
+        self.assertEqual(p2.value(obj=b), factor * p1.value(obj=b))

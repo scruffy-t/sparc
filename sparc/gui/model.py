@@ -90,13 +90,19 @@ class ParamItem(object):
 
             # set value
             elif column == 1:
-                self.node.set_value(value)
+                try:
+                    self.node.set_value(value)
+                except Exception:
+                    return False
                 return True
 
         elif role == QtCore.Qt.CheckStateRole:
 
             value = True if value == QtCore.Qt.Checked else False
-            self.node.set_value(value)
+            try:
+                self.node.set_value(value)
+            except Exception:
+                return False
             return True
 
         return False
@@ -106,7 +112,7 @@ class ParamModel(QtCore.QAbstractItemModel):
 
     # TODO: Catch all exceptions and emit them as errorMessage
     errorMessage = QtCore.pyqtSignal(str)
-    valueChanged = QtCore.pyqtSignal(str, object)
+    valueChanged = QtCore.pyqtSignal(str)
 
     def __init__(self, root=None, parent=None):
         """
@@ -265,7 +271,7 @@ class ParamModel(QtCore.QAbstractItemModel):
             success = False
 
         if role in (QtCore.Qt.EditRole, QtCore.Qt.CheckStateRole) and success:
-            self.valueChanged.emit(node.absolute_name(), node.value(context=self._context))
+            self.valueChanged.emit(node.absolute_name())
 
         return success
 
