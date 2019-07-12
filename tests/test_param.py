@@ -1,38 +1,7 @@
 from unittest import TestCase
-from sparc.core import ParamNode, ParamGroupNode, Interval, param
+from sparc.core import ParamNode, ParamGroupNode, Interval
 
 import random
-
-
-# class Param(object):
-#
-#     def __init__(self, name=None, value=None, type=None, validator=None, fget=None, fset=None):
-#         print('inside __init__')
-#         editable = fset is not None
-#         self.p = ParamNode(name, value, type, editable=editable, validator=validator)
-#         self.fget = fget
-#         self.fset = fset
-#
-#     def __call__(self, fget):
-#         print('inside __call__')
-#         self.fget = fget
-#         return self
-#
-#     def __get__(self, instance, owner):
-#         print('inside __get__')
-#         if instance is None:
-#             return self
-#         return self.fget(instance)
-#
-#     def __set__(self, instance, value):
-#         print('inside __set__')
-#         if self.fset is None:
-#             raise AttributeError('parameter {} is not editable'.format(self.p.name()))
-#         return self.fset(instance, value)
-#
-#     def setter(self, fset):
-#         print('inside setter')
-#         return type(self)(name=self.p.name(), value=self.p.value(), type=self.p.type(), fget=self.fget, fset=fset)
 
 
 class TestParamNode(TestCase):
@@ -91,41 +60,3 @@ class TestParamNode(TestCase):
 
         with self.assertRaises(NameError):
             p.child('extern').value()
-
-    def test_property_wrapper(self):
-
-        class Foo(object):
-
-            def __init__(self, v):
-                self._v = v
-
-            @param(type=int, validator=Interval(0, 100))
-            def value(self):
-                return self._v
-
-            @value.setter
-            def value(self, v):
-                self._v = v
-
-        class Bar(object):
-
-            def __init__(self, v):
-                self._v = v
-
-            @param(type=float)
-            def child_value(self):
-                return self._v
-
-        f1 = Foo(34)
-        f2 = Foo(23)
-        b1 = Bar(34.56)
-
-        self.assertEqual(f1.value, 34)
-
-        f1.value = 45
-
-        self.assertEqual(f1.value, 45)
-        self.assertEqual(f2.value, 23)
-
-        p = ParamGroupNode('test')
-        p.add_child(Foo.value)

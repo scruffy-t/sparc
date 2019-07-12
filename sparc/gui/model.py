@@ -58,7 +58,7 @@ class ParamItem(object):
 
         elif role == QtCore.Qt.TextAlignmentRole:
             if column == 1:
-                return QtCore.Qt.AlignHCenter
+                return QtCore.Qt.AlignLeft
 
         elif role == QtCore.Qt.BackgroundColorRole:
             if isinstance(self.node, ParamGroupNode):

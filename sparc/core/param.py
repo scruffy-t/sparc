@@ -3,7 +3,7 @@ from .types import Types
 
 import re
 
-__all__ = ['ParamGroupNode', 'ParamNode', 'param']
+__all__ = ['ParamGroupNode', 'ParamNode']
 
 # TODO: add configurable display names, help text (for tooltips)
 
@@ -137,8 +137,6 @@ class ParamNode(AbstractLeafNode):
         AbstractLeafNode.__init__(self, name, parent)
 
         self._raw = None  # the node's raw value, will be set below (set_value)
-        self._fget = None
-        self._fset = None
         self._edit = True
         self._vars = []  # stores variable names if node is an expression
 
@@ -163,27 +161,8 @@ class ParamNode(AbstractLeafNode):
             raise AttributeError(f'validator {validator:!r} does not implement __contains__')
 
         self._validator = validator  # set validator before value to enable checking
-        if hasattr(value, '__call__'):
-            self._fget = value
-        else:
-            self.set_value(value)  # convert, check, and set value
+        self.set_value(value)  # convert, check, and set value
         self.set_editable(editable)  # set editable after value to enable value initialization
-
-    def __get__(self, obj, owner):
-        if obj is None:
-            return self
-        if self.is_descriptor():
-            return self._fget(obj)
-        raise AttributeError('param node is not readable')
-
-    def __set__(self, obj, value):
-        if not self.is_editable():
-            raise AttributeError('param node is not editable')
-        # TODO: do all the checking that we normally do in set_value
-        self._fset(obj, value)
-
-    def is_descriptor(self):
-        return self._fget is not None
 
     def is_editable(self):
         """Returns a bool indicating whether the underlying param node can be edited."""
@@ -220,17 +199,6 @@ class ParamNode(AbstractLeafNode):
         of an expression node, the raw value is a str instance.
         """
         return self._raw
-
-    def setter(self, fset):
-        """Decorator function.
-
-        :param fset:
-        :return:
-        """
-        editable = fset is not None
-        self.set_editable(editable)
-        self._fset = fset
-        return self
 
     def set_editable(self, editable):
         """
@@ -362,17 +330,3 @@ class ParamNode(AbstractLeafNode):
         """
         """
         return isinstance(value, str) and value.startswith('=')
-
-
-class param(object):
-
-    def __init__(self, name=None, type=None, validator=None, parent=None):
-        self.name = name
-        self.type = type
-        self.validator = validator
-        self.parent = parent
-
-    def __call__(self, fget):
-        name = self.name or fget.__name__
-        return ParamNode(name, value=fget, type=self.type, editable=False,
-                         validator=self.validator, parent=self.parent)
