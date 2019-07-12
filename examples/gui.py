@@ -1,8 +1,6 @@
-import sys
-
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog
+from PyQt5.QtWidgets import QApplication, QMainWindow
 
 from sparc.core import *
 from sparc.gui import ParamTreeWidget
@@ -40,13 +38,14 @@ class MainWindow(QMainWindow):
         file_menu.addAction('&Save', self.widget.save)
 
 
-def main():
+def main(args=None):
 
-    app = QApplication(sys.argv)
+    app = QApplication(args)
     window = MainWindow()
     window.show()
     return app.exec()
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    import sys
+    sys.exit(main(sys.argv))

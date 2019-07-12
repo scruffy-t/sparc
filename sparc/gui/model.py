@@ -13,14 +13,17 @@ class ParamItem(object):
     def __init__(self, node):
         if not isinstance(node, (ParamNode, ParamGroupNode)):
             raise TypeError('node must be ParamNode or ParamGroupNode instance')
+        if isinstance(node, ParamNode) and node.is_unbound():
+            raise TypeError('ParamModel does not support unbound ParamNode instances')
         self.node = node
 
-    def data(self, column, role, **context):
+    def data(self, column, role, context=None):
 
         if role == QtCore.Qt.CheckStateRole:
             if column == 1:  # value column
-                if isinstance(self.node, ParamGroupNode):
+                if not isinstance(self.node, ParamNode):
                     return None
+
                 if self.node.type() is bool:
                     return QtCore.Qt.Checked if self.node.value() else QtCore.Qt.Unchecked
 
@@ -28,16 +31,13 @@ class ParamItem(object):
             if column == 0:  # name column
                 return self.node.display_name()
             elif column == 1:  # value column
-                if isinstance(self.node, ParamGroupNode):
+                if not isinstance(self.node, ParamNode):
                     return None
 
-                if self.node.is_expression():
-                    try:
-                        value = self.node.value(**context)
-                    except Exception as e:
-                        value = str(e)
-                else:
-                    value = self.node.value()
+                try:
+                    value = self.node.value(context=context)
+                except Exception as e:
+                    value = str(e)
 
                 value_type = type(value)
 
@@ -73,6 +73,9 @@ class ParamItem(object):
         return None
 
     def setData(self, column, value, role):
+
+        if not isinstance(self.node, ParamNode):
+            return False
 
         if role == QtCore.Qt.EditRole:
 
@@ -128,7 +131,7 @@ class ParamModel(QtCore.QAbstractItemModel):
         node = self.nodeFromIndex(index)
         item = ParamItem(node)
 
-        return item.data(index.column(), role, **self._context)
+        return item.data(index.column(), role, context=self._context)
 
     def flags(self, index):
         """
@@ -262,7 +265,7 @@ class ParamModel(QtCore.QAbstractItemModel):
             success = False
 
         if role in (QtCore.Qt.EditRole, QtCore.Qt.CheckStateRole) and success:
-            self.valueChanged.emit(node.absolute_name(), node.value())
+            self.valueChanged.emit(node.absolute_name(), node.value(context=self._context))
 
         return success
 
