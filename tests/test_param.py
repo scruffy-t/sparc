@@ -1,8 +1,6 @@
 from unittest import TestCase
 from sparc.core import ParamNode, ParamGroupNode, Interval
 
-import random
-
 
 class TestParamNode(TestCase):
 
@@ -36,12 +34,14 @@ class TestParamNode(TestCase):
     def test_editable(self):
         p = ParamNode('x', 0, int)
         self.assertEqual(p.is_editable(), True)
-        self.assertEqual(p.is_valid_value(random.randint(-10000, 10000)), True)
 
     def test_values(self):
         p = ParamNode('x', 0, int, validator=Interval(-1, +1, (Interval.Closed, Interval.Open)))
-        self.assertEqual(p.is_valid_value(-1), False)
-        self.assertEqual(p.is_valid_value(+1), True)
+        with self.assertRaises(ValueError):
+            p.set_value(-1)
+
+        with self.assertRaises(ValueError):
+            p.set_value('Hello World')
 
     def test_expression(self):
         p = ParamGroupNode('set')
@@ -56,7 +56,9 @@ class TestParamNode(TestCase):
         self.assertEqual(p.child('F').value(), 10.0)
         self.assertEqual(p.child('Sigma').value(), 2.5)
         self.assertEqual(p.child('l').value(), 2.0)
-        self.assertEqual(p.child('extern').value(x=2, F=34), 42.0)
+
+        # context F takes precedence over sibling F!
+        self.assertEqual(p.child('extern').value(context={'x': 2, 'F': 20.0}), 82.0)
 
         with self.assertRaises(NameError):
             p.child('extern').value()

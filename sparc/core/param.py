@@ -2,6 +2,8 @@
 
 # system modules
 import re
+import types
+import collections
 
 # sparc modules
 from .node import AbstractNode, AbstractLeafNode
@@ -14,7 +16,6 @@ class ParamGroupNode(AbstractNode):
 
     def __init__(self, name, children=(), parent=None):
         """Initializes a new ParamGroupNode.
-
         Parameters
         ----------
         name: str
@@ -45,16 +46,16 @@ class ParamGroupNode(AbstractNode):
         if isinstance(first, str):
 
             # find parent node
-            parent_name, child_name = AbstractNode.split_name(first)
+            parent_name, args[0] = AbstractNode.split_name(first)
+
             if parent_name != '':
                 parent = self.child(parent_name)
 
             # if there is only one parameter given it must be a group node
             if len(args) + len(kwargs) == 1:
-                node = ParamGroupNode(child_name)
+                node = ParamGroupNode(args[0])
             else:
-                args = args[1:]
-                node = ParamNode(child_name, *args, **kwargs)
+                node = ParamNode(*args, **kwargs)
 
         # parameter is a node already
         elif isinstance(first, (ParamNode, ParamGroupNode)):
@@ -67,17 +68,21 @@ class ParamGroupNode(AbstractNode):
 
     def add_children(self, children):
         """Adds a list of children to the node.
-
         Parameters
         ----------
         children: Iterable
         """
         for child in children:
-            self.add_child(**child)
+            if isinstance(child, (ParamNode, ParamGroupNode)):
+                self.add_child(child)
+            elif isinstance(child, collections.Mapping):
+                self.add_child(**child)
+            else:
+                child_type = type(child)
+                raise TypeError(f'unexpected type of child {child_type}')
 
     def iter_child_values(self, recursive=False):
         """Iterates through all child node values (recursively).
-
         Parameters
         ----------
         recursive: bool
@@ -101,7 +106,6 @@ class ParamGroupNode(AbstractNode):
 
     def update_values(self, other):
         """Updates child values based on a dict.
-
         Parameters
         ----------
         other: dict
@@ -115,12 +119,11 @@ class ParamNode(AbstractLeafNode):
 
     VarPattern = r'([a-zA-Z_0-9]+(\.[a-zA-Z_0-9]+)*)(?![([a-zA-Z_0-9]])'
 
-    def __init__(self, name, value=None, type=None, editable=True, validator=None, parent=None):
+    def __init__(self, name=None, value=None, type=None, editable=True, validator=None, fget=None, fset=None, parent=None):
         """Constructs a new Param instance.
-
         Parameters
         ----------
-        name: str
+        name: str or None
             The node name.
         value: Any
             The node's initial value.
@@ -136,11 +139,42 @@ class ParamNode(AbstractLeafNode):
         parent: AbstractNode
             The parameter's parent node.
         """
+        if [name, fget].count(None) == 2:
+            raise TypeError('at least one of name and fget must be provided')
+        name = name or fget.__name__
+
         AbstractLeafNode.__init__(self, name, parent)
 
-        self._raw = None  # the node's raw value, will be set below (set_value)
+        # NOTE: don't infer type automatically, i.e. with self._t = type(value)
+        # because we also support dynamic parameter types
+        self._t = None
+
+        # type parameter provided
+        if isinstance(type, str):
+            self._t = Types.get_type(type)
+        elif type is not None:
+            self._t = type
+
+        self._validator = None
+        # set validator before value to enable checking
+        self.set_validator(validator)
+
+        # TODO: how to handle fget/fset if classmethod, staticmethod, or builtin_method?
+
+        if fget is not None:
+            if not isinstance(fget, (types.MethodType, types.FunctionType)):
+                raise TypeError('fget must be None or a method/function, not {}'.format(type(fget)))
+
+            self._get = fget
+        else:
+            self._get = None  # will be set below in set_value
+
+        if fset is not None:
+            if not isinstance(fset, (types.MethodType, types.FunctionType)):
+                raise TypeError('fset must be None or a method/function, not {}'.format(type(fset)))
+
+        self._set = fset
         self._edit = True
-        self._vars = []  # stores variable names if node is an expression
 
         # if self.__is_expression(value):
         #     # type not allowed
@@ -149,124 +183,144 @@ class ParamNode(AbstractLeafNode):
         #     if validator is not None:
         #         raise TypeError('validator not allowed with expression')
 
-        # type parameter was set explicitly
-        if isinstance(type, str):
-            self._t = Types.get_type(type)
-        elif type is not None:
-            self._t = type
-        # NOTE: don't infer type automatically, i.e. with self._t = type(value)
-        # because we also support dynamic parameter types
-        else:
-            self._t = None
+        if value is not None and self.is_editable():
+            self.set_value(value)  # convert, check, and set value
 
-        if validator is not None and not hasattr(validator, '__contains__'):
-            raise AttributeError(f'validator {validator:!r} does not implement __contains__')
-
-        self._validator = validator  # set validator before value to enable checking
-        self.set_value(value)  # convert, check, and set value
         self.set_editable(editable)  # set editable after value to enable value initialization
+
+    def __call__(self, fget):
+        self._get = fget
+        # TODO: return a copy instead?
+        return self
+
+    def __get__(self, obj, owner):
+        return self.value(obj=obj)
+
+    def __set__(self, obj, value):
+        return self.set_value(value, obj=obj)
+
+    def is_descriptor(self):
+        """Returns a bool indicating whether the node is a descriptor.
+        Descriptors manage access to values that are hold by some other object.
+        They do not hold their own values.
+        """
+        return isinstance(self._get, (types.MethodType, types.FunctionType))
 
     def is_editable(self):
         """Returns a bool indicating whether the underlying param node can be edited."""
+        if self.is_descriptor():
+            return self._edit and self._set is not None
         return self._edit
 
-    def is_expression(self):
+    def is_expression(self, *args, **kwargs):
         """Returns a bool indicating whether the param is an expression."""
-        return self.__is_expression(self._raw)
+        if self.is_descriptor():
+            value = self._get(*args, **kwargs)
+        else:
+            value = self._get
+        return self.__is_expression(value)
 
-    @staticmethod
-    def is_valid_expression(expr):
-        # TODO: implement is_valid_expression
-        return True
+    def is_unbound(self):
+        # TODO: what if _get is a staticmethod?
+        return isinstance(self._get, types.FunctionType)
 
-    def is_valid_value(self, value):
-        """
-
-        Parameters
-        ----------
-        value:
-        """
-        try:
-            self.validate_value(value)
-        except ValueError:
-            return False
-        return True
-
-    def raw_value(self):
+    def raw_value(self, obj=None):
         """Returns the node's raw value.
-
         Notes
         -----
         The raw_value of a node must not be equal to the value. E.g. in case
         of an expression node, the raw value is a str instance.
         """
-        return self._raw
+        if self.is_descriptor():
+            if self.is_unbound():
+                return self._get(obj)
+            else:
+                return self._get()
+        return self._get
+
+    def setter(self, fset):
+        self._set = fset
+        # TODO: return a copy instead?
+        return self
 
     def set_editable(self, editable):
         """
         """
         self._edit = editable
 
-    def set_value(self, value):
-        """Sets the node value.
+    def set_validator(self, validator):
+        if validator is not None and not hasattr(validator, '__contains__'):
+            raise AttributeError(f'validator {validator:!r} does not implement __contains__')
+        self._validator = validator
 
+    def set_value(self, value, obj=None):
+        """Sets the node value.
         Parameters
         ----------
         value: any
-
+        obj: Any
         Raises
         ------
         AttributeError:
-            If param is not editable.
+            If node is not editable.
         ValueError:
             If value is not a valid value or expression.
         """
         if not self.is_editable():
-            raise AttributeError('Node %s is not editable!' % str(self))
+            raise AttributeError(f'ParamNode {self.absolute_name()} is not editable')
 
-        # may convert the value to the appropriate type
-        self._raw = self.validate_value(value)
+        # check if value confirms to the value restrictions
+        # imposed by type and validator
+        # but only is value is not an expression
+        # expressions are check whether they are valid only upon
+        # access, i.e. when value() is called
+        if not self.__is_expression(value):
+            # may convert the value to the appropriate type
+            # or raise an Error (ValueError or TypeError) if value
+            # is not suitable
+            value = self.__validate_value(value)
 
-        # reset expression variables
-        self._vars = []
+        if self.is_descriptor():
+            if self.is_unbound():
+                self._set(obj, value)
+            else:
+                self._set(value)
 
-        # extract variable names if value is an expression
-        if self.__is_expression(value):
-            expr = value.replace('= ', '')
-            for m in re.finditer(self.VarPattern, expr):
-                self._vars.append(m.group())
+        else:
+            self._get = value
 
     def type(self):
         """Returns the node value data type or None if type has not been set."""
         return self._t
 
-    def validate_value(self, value):
-        """Returns the validated value or raises an exception if the value is not valid.
+    @staticmethod
+    def expression_vars(expr):
+        expr = expr.replace('= ', '')
+        return [m.group() for m in re.finditer(ParamNode.VarPattern, expr)]
 
+    def __validate_value(self, value):
+        """Returns the validated value or raises an exception if the value is not valid.
         Notes
         -----
         A value is considered valid if
         - it has the node's data type (if it was set explicitly)
         - it is contained in the Param's values range,
           i.e. "value in validator" returns True
-
         Raises
         ------
         ValueError:
         TypeError:
         """
-        if self.__is_expression(value):
-            if self.is_valid_expression(value):
-                return value
-            raise ValueError('invalid expression')
-
         value_type = type(value)
 
         # type was set
         if self._t is not None:
             # deserialize string value only if node type is not str
             if isinstance(value, str) and self._t != str:
-                value = Types.deserialize(value, self._t)
+                try:
+                    value = Types.deserialize(value, self._t)
+                except SyntaxError:
+                    raise ValueError(f'invalid value "{value}"')
             elif value_type != self._t:
                 # try to use the type directly to convert value
                 try:
@@ -280,50 +334,65 @@ class ParamNode(AbstractLeafNode):
 
         # check the validator
         if value not in self._validator:
-            raise ValueError('invalid value')
+            raise ValueError(f'validator rejected value {value}')
 
         return value
 
-    def value(self, **context):
-        """Returns the node value, i.e. the display data."""
-        if self.is_expression():
-            return self.__eval_expression(**context)
-        return self._raw
+    def value(self, obj=None, context=None):
+        """Returns the node value.
+        Parameters
+        ----------
+        obj: object
+        context: mapping
+            The context provides values for external expression variables.
+        """
+        value = self.raw_value(obj)
+
+        if self.__is_expression(value):
+            value = self.__eval_expression(value, obj=obj, context=context)
+
+        self.__validate_value(value)
+        return value
 
     def validator(self):
         """Returns the node validator."""
         return self._validator
 
-    def __eval_expression(self, **context):
+    def __eval_expression(self, expr, obj=None, context=None):
         """
-
         Parameters
         ----------
-        context: dict
+        expr: str
+        context: Mapping or None
             Variable dict extension.
-            NOTE: node values take precedence over context values!
-
+            NOTE: context values take precedence over sibling values!
         Raises
         ------
         NameError:
             If one of the variables is not a sibling node.
         """
-        # common_keys = set(self._vars).intersection(context.keys())
-        # if len(common_keys):
-        #     raise KeyError('Invalid context keys: %s' % common_keys)
+        expr = expr.replace('= ', '')
+        vars = [m.group() for m in re.finditer(self.VarPattern, expr)]
 
+        if self.name() in vars:
+            raise RecursionError('a node expression must not refer to the node itself')
+
+        sibling_context = {}
+        # overwrites kwargs with sibling node values
         for sibling in self.iter_siblings():
-            if sibling.name() in self._vars:
+            if sibling.name() in vars:
                 # TODO: check if sibling is a ParamGroupNode
-                context[sibling.name()] = sibling.value()
+                sibling_context[sibling.name()] = sibling.value(obj=obj, context=context)
 
-        # for name in self._vars:
-        #     context[name] = self.sibling(name).value()
+        sibling_context.update(context or {})
 
-        expr = self._raw.strip('= ')
+        # for name in vars:
+        #     context[name] = self.sibling(name).value(obj=obj, context=context)
+
+        expr = expr.strip('= ')
 
         # TODO: replace eval with a safer way
-        result = eval(expr, globals(), context)
+        result = eval(expr, globals(), sibling_context)
 
         return result
 

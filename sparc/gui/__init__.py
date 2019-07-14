@@ -7,7 +7,6 @@ except ImportError:
     HAVE_QT = False
 
 if HAVE_QT:
-    from .decorators import *
     from .delegate import *
     from .model import *
     from .settings import *

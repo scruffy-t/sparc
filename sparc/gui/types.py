@@ -4,6 +4,7 @@ from sparc.core import Types
 
 
 class ColorSerializer(object):
+    """Serialize QColor instances as hex strings."""
 
     @staticmethod
     def deserialize(text, **kwargs):
@@ -20,5 +21,4 @@ class ColorSerializer(object):
         return f'#{r:02x}{g:02x}{b:02x}{a:02x}'
 
 
-# serialize colors as hex strings
 Types.register_type('Color', QColor, ColorSerializer)
