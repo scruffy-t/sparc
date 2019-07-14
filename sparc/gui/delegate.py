@@ -1,6 +1,5 @@
-"""
+# delegate.py
 
-"""
 # system modules
 import collections
 
@@ -13,10 +12,10 @@ from sparc.core import *
 from .settings import DEFAULT_SETTINGS as SETTINGS
 from .model import ParamModel
 
-__all__ = ['ParamModelDelegate']
+__all__ = ['ParamDelegate']
 
 
-class ParamModelDelegate(QtWidgets.QStyledItemDelegate):
+class ParamDelegate(QtWidgets.QStyledItemDelegate):
 
     def __init__(self, parent=None):
         QtWidgets.QStyledItemDelegate.__init__(self, parent)
@@ -48,7 +47,6 @@ class ParamModelDelegate(QtWidgets.QStyledItemDelegate):
             if isinstance(validator, collections.Collection):
 
                 if node_type == QtGui.QColor:
-                    # TODO: implement color combo box
                     editor = QtWidgets.QComboBox(parent)
                     for row, valid_value in enumerate(validator):
                         editor.addItem('', valid_value)

@@ -1,7 +1,12 @@
+# model.py
+
+# system modules
 import pickle
 
+# Qt modules
 from PyQt5 import QtCore, QtGui
 
+# sparc modules
 from sparc.core import *
 from .settings import DEFAULT_SETTINGS as SETTINGS
 
@@ -26,7 +31,7 @@ class ParamItem(object):
 
         if role == QtCore.Qt.DisplayRole:
             if column == 0:  # name column
-                return self.node.display_name()
+                return self.node.name()
             elif column == 1:  # value column
                 if isinstance(self.node, ParamGroupNode):
                     return None
@@ -50,7 +55,7 @@ class ParamItem(object):
 
         elif role == QtCore.Qt.EditRole:
             if column == 0:
-                return self.node.display_name()
+                return self.node.name()
             elif column == 1:
                 if isinstance(self.node, ParamGroupNode):
                     return None

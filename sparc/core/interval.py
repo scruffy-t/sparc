@@ -5,9 +5,11 @@ import sys
 import operator
 import re
 
+__all__ = ['Interval', 'INFINITE']
+
 
 class Interval(object):
-    """Represents an open/closed real number interval.
+    """Represents an open/closed continuous interval.
     """
 
     Open, Closed = range(2)

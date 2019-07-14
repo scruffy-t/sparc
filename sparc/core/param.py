@@ -1,11 +1,13 @@
+# param.py
+
+# system modules
+import re
+
+# sparc modules
 from .node import AbstractNode, AbstractLeafNode
 from .types import Types
 
-import re
-
 __all__ = ['ParamGroupNode', 'ParamNode']
-
-# TODO: add configurable display names, help text (for tooltips)
 
 
 class ParamGroupNode(AbstractNode):
@@ -68,7 +70,7 @@ class ParamGroupNode(AbstractNode):
 
         Parameters
         ----------
-        children: tuple of dicts
+        children: Iterable
         """
         for child in children:
             self.add_child(**child)
@@ -174,7 +176,7 @@ class ParamNode(AbstractLeafNode):
 
     @staticmethod
     def is_valid_expression(expr):
-        # TODO: Implement is_valid_expression
+        # TODO: implement is_valid_expression
         return True
 
     def is_valid_value(self, value):
@@ -320,7 +322,7 @@ class ParamNode(AbstractLeafNode):
 
         expr = self._raw.strip('= ')
 
-        # TODO: Replace globals() with {'__builtins__': None} and add all relevant functions to context
+        # TODO: replace eval with a safer way
         result = eval(expr, globals(), context)
 
         return result

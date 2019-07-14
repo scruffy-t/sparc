@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import *
 
-from sparc.gui import ParamModel, ParamModelDelegate
+from sparc.gui import ParamModel, ParamDelegate
 
 __all__ = ['ParamTreeWidget']
 
@@ -13,7 +13,7 @@ class ParamTreeWidget(QWidget):
         self._view = QTreeView(self)
         self._model = ParamModel(root, self)
         self._view.setModel(self._model)
-        self._view.setItemDelegate(ParamModelDelegate(self))
+        self._view.setItemDelegate(ParamDelegate(self))
 
         self._view.setEditTriggers(
             QAbstractItemView.SelectedClicked | QAbstractItemView.EditKeyPressed

@@ -11,7 +11,8 @@ Classes:
     AbstractNode: A class that implements basic tree node functionality for
     adding, accessing, and removing child nodes.
 """
-LEVEL_SEPARATOR = '.'
+
+LEVEL_SEPARATOR = '.'  # level separation character
 
 
 class AbstractLeafNode(object):
@@ -106,20 +107,6 @@ class AbstractLeafNode(object):
     def name(self):
         """Returns the node name."""
         return self._n
-
-    def display_name(self):
-        """Returns the display name of the node.
-
-        Underscore characters are replaced by whitespaces.
-
-        Examples
-        --------
-
-        >>> n = AbstractLeafNode('node_name')
-        >>> n.display_name()
-        'node name'
-        """
-        return self._n.replace('_', ' ')
 
     def absolute_name(self):
         """Returns the absolute name of the node, similar to an absolute path.
