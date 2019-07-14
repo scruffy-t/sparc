@@ -33,7 +33,7 @@ Examples
 
 The first example shows how to create a parameter tree.
 
-.. code-block::
+.. code-block:: python
 
     from sparc import *
 

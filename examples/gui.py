@@ -9,7 +9,7 @@ from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QApplication, QTreeView
 
 # sparc modules
-from sparc.core import *
+from sparc import __version__, ParamGroupNode
 from sparc.gui import ParamModel, ParamDelegate
 
 
@@ -35,6 +35,7 @@ def main():
     ])
 
     app = QApplication(sys.argv)
+    app.setApplicationDisplayName(f'sparc (v{__version__})')
 
     model = ParamModel(p)
     model.setExpressionContext({'extern': 34})
@@ -42,6 +43,7 @@ def main():
     view = QTreeView()
     view.setModel(model)
     view.setItemDelegate(ParamDelegate(view))
+    view.setWindowTitle(app.applicationDisplayName())
 
     view.show()
 
