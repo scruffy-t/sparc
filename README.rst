@@ -1,13 +1,15 @@
 sparc
 =====
 
-*sparc* (acronym for Scientific PARameter Collection) is a Python module that provides classes
-to easily **create**, **edit**, **visualize**, and **serialize** parameter structures.
+*sparc* helps you create user interfaces (UI) for editing data structures. No matter if you want to
+write a UI for an existing data structure or you start from scratch, *sparc* can speed up your work.
 
-In the world of *sparc*, a parameter is a name-value pair. Parameters can be nested and depend
-on other parameter values, thereby emulating spreadsheet-like behavior.
+Check out the `Examples`_ section to see what *sparc* can do for you.
 
-Check out the `Examples`_ section to see what you can do with *sparc*.
+Currently, *sparc* only supports UI generation for the `Qt <https://www.qt.io>`_ framework via
+`PyQt <https://riverbankcomputing.com/software/pyqt/intro>`_ (currently PyQt5), but the *sparc* core
+is written in a generic way, so that it is rather easy to extend *sparc* for other GUI frameworks
+such as `wxWidgets <https://www.wxwidgets.org>`_.
 
 Dependencies
 ============
@@ -27,11 +29,20 @@ The easiest way to install or update sparc is using **pip** (or **pipenv**) ::
 
     pip install -U sparc
 
+If you want to install the latest version of *sparc*, just clone the github repository and install
+using setuptools ::
+
+    git clone git@github.com:tschruff/sparc.git
+    cd sparc
+    python3 setup.py install
+
+If you want to develop with *sparc* you may install using the ``develop`` command instead of
+the ``install`` command.
 
 Examples
 ========
 
-The first example shows how to create a parameter tree.
+The first example shows how to create a parameter tree from scratch.
 
 .. code-block:: python
 
@@ -64,6 +75,66 @@ The first example shows how to create a parameter tree.
     # retrieving node values is as simple as
     value = p['l'].value()
 
+If you have an existing data structure, *sparc* works a little bit different. Let's assume there is a
+data structure defined in some external module (so you have no chance to change it's definition).
+
+.. code-block:: python
+
+    class Data(object):
+
+        def __init__(self, f, b):
+            self._foo = f
+            self._bar = b
+
+        def foo(self):
+            return self._foo
+
+        def set_foo(self, f):
+            self._foo = f
+
+        def bar(self):
+            return self._bar
+
+        def set_bar(self, b):
+            self._bar = b
+
+You can now use *sparc* to wrap the getter and setter functions and create a parameter tree.
+
+.. code-block:: python
+
+    from sparc import *
+
+    unbound_param = ParamGroup('data')
+    unbound_param.add_children([
+        dict(name='foo', type=int, fget=Data.foo, fset=Data.set_foo),
+        dict(name='bar', type=float, fget=Data.bar, fset=Data.set_bar)
+    ])
+
+    d = Data(4, 6.5)
+
+    # returns True
+    unbound_param['foo'].is_unbound()
+
+    # you must provide a Data instance to obtain it's value
+    unbound_param['foo'].value(obj=d)
+
+Alternatively, you can wrap getter and setter methods.
+
+.. code-block:: python
+
+    d = Data(4, 6.5)
+
+    bound_param = ParamGroup('data')
+    bound_param.add_children([
+        dict(name='foo', type=int, fget=d.foo, fset=d.set_foo),
+        dict(name='bar', type=float, fget=d.bar, fset=d.set_bar)
+    ])
+
+    # returns False
+    unbound_param['foo'].is_unbound()
+
+    # no nee to provide the Data instance for bound parameters
+    bound_param['foo'].value()
 
 Developers
 ----------
