@@ -9,9 +9,6 @@ from sparc import __version__
 
 __all__ = ['DEFAULT_SETTINGS', 'print_Qt_config']
 
-QtCore.QCoreApplication.setApplicationName('sparc')
-QtCore.QCoreApplication.setApplicationVersion(__version__)
-
 DEFAULT_SETTINGS = QtCore.QSettings('Nutshell', 'sparc')
 DEFAULT_SETTINGS.setValue('decimals', 5)
 

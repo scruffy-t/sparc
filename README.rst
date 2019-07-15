@@ -139,5 +139,5 @@ Alternatively, you can wrap getter and setter methods.
 Developers
 ----------
 
-*sparc* is developed by me, Tobias Schruff <tobias.schruff@gmail.com>. Feel free to contact me for bugs or feature
+*sparc* is developed by Tobias Schruff <tobias.schruff@gmail.com>. Feel free to contact me for bugs or feature
 requests.

@@ -148,7 +148,7 @@ class ParamModel(QtCore.QAbstractItemModel):
         """
         """
         f = QtCore.QAbstractItemModel.flags(self, index)
-        if not index.isValid():
+        if not index.isValid() or index.column() == 0:
             return f
 
         if not self.isEditable(index):

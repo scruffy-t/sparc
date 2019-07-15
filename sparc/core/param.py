@@ -115,6 +115,19 @@ class ParamGroupNode(AbstractNode):
             self.child(name).set_value(value)
 
 
+def is_unbound(func):
+    # builtin types
+    if hasattr(func, '__objclass__'):
+        return True
+    # wrapped types
+    elif hasattr(func, '__self__') and func.__self__ is None:
+        return True
+    # user pure Python types
+    elif isinstance(func, types.FunctionType):
+        return True
+    return False
+
+
 class ParamNode(AbstractLeafNode):
 
     VarPattern = r'([a-zA-Z_0-9]+(\.[a-zA-Z_0-9]+)*)(?![([a-zA-Z_0-9]])'
@@ -162,16 +175,16 @@ class ParamNode(AbstractLeafNode):
         # TODO: how to handle fget/fset if classmethod, staticmethod, or builtin_method?
 
         if fget is not None:
-            if not isinstance(fget, (types.MethodType, types.FunctionType)):
-                raise TypeError('fget must be None or a method/function, not {}'.format(type(fget)))
+            if not hasattr(fget, '__call__'):
+                raise TypeError('fget must be None or a callable, not {}'.format(type(fget)))
 
             self._get = fget
         else:
             self._get = None  # will be set below in set_value
 
         if fset is not None:
-            if not isinstance(fset, (types.MethodType, types.FunctionType)):
-                raise TypeError('fset must be None or a method/function, not {}'.format(type(fset)))
+            if not hasattr(fset, '__call__'):
+                raise TypeError('fset must be None or a callable, not {}'.format(type(fset)))
 
         self._set = fset
         self._edit = True
@@ -221,8 +234,7 @@ class ParamNode(AbstractLeafNode):
         return self.__is_expression(value)
 
     def is_unbound(self):
-        # TODO: what if _get is a staticmethod?
-        return isinstance(self._get, types.FunctionType)
+        return is_unbound(self._get)
 
     def raw_value(self, obj=None):
         """Returns the node's raw value.
@@ -255,10 +267,12 @@ class ParamNode(AbstractLeafNode):
 
     def set_value(self, value, obj=None):
         """Sets the node value.
+        
         Parameters
         ----------
         value: any
         obj: Any
+        
         Raises
         ------
         AttributeError:
@@ -300,12 +314,14 @@ class ParamNode(AbstractLeafNode):
 
     def __validate_value(self, value):
         """Returns the validated value or raises an exception if the value is not valid.
+        
         Notes
         -----
         A value is considered valid if
         - it has the node's data type (if it was set explicitly)
         - it is contained in the Param's values range,
           i.e. "value in validator" returns True
+          
         Raises
         ------
         ValueError:

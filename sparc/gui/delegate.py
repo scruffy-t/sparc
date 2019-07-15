@@ -42,9 +42,9 @@ class ParamDelegate(QtWidgets.QStyledItemDelegate):
                 editor.setText(node.raw_value())
                 return editor
 
-            # if validator is a Collection, the delegate is a QComboBox
-            # Collection := limited number of known choices
-            if isinstance(validator, collections.Collection):
+            # if validator is a Sized, the delegate is a QComboBox
+            # Sized := limited number of known choices
+            if isinstance(validator, collections.Sized):
 
                 if node_type == QtGui.QColor:
                     editor = QtWidgets.QComboBox(parent)
@@ -64,6 +64,7 @@ class ParamDelegate(QtWidgets.QStyledItemDelegate):
                 editor = QtWidgets.QLineEdit(parent)
                 editor.setText(str(node.value()))
                 return editor
+                
             if node_type is int:
                 editor = QtWidgets.QSpinBox(parent)
                 if isinstance(validator, Interval):
@@ -75,6 +76,7 @@ class ParamDelegate(QtWidgets.QStyledItemDelegate):
                     editor.setRange(-maxi, maxi)
                 editor.setValue(node.value())
                 return editor
+                
             if node_type is float:
                 editor = QtWidgets.QDoubleSpinBox(parent)
                 editor.setDecimals(SETTINGS.value('decimals'))
@@ -87,11 +89,13 @@ class ParamDelegate(QtWidgets.QStyledItemDelegate):
                     editor.setRange(-maxf, maxf)
                 editor.setValue(node.value())
                 return editor
+                
             if node_type is list:
                 # TODO: implement list editor
                 editor = QtWidgets.QLineEdit(parent)
                 editor.setText(str(node.value()))
                 return editor
+                
             if node_type is QtGui.QColor:
                 editor = QtWidgets.QColorDialog(node.value(), parent)
                 return editor
