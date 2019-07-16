@@ -99,6 +99,10 @@ class ParamDelegate(QtWidgets.QStyledItemDelegate):
             if node_type is QtGui.QColor:
                 editor = QtWidgets.QColorDialog(node.value(), parent)
                 return editor
+                
+            # TODO: implement QPen editor
+            # if node_type is QtGui.QPen:
+            #     editor = 
 
         return QtWidgets.QStyledItemDelegate.createEditor(self, parent, option, index)
 

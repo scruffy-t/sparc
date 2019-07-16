@@ -4,12 +4,16 @@
 import re
 import types
 import collections
+import logging
 
 # sparc modules
 from .node import AbstractNode, AbstractLeafNode
 from .types import Types
 
 __all__ = ['ParamGroupNode', 'ParamNode']
+
+
+_log = logging.getLogger(__name__)
 
 
 class ParamGroupNode(AbstractNode):
@@ -177,15 +181,18 @@ class ParamNode(AbstractLeafNode):
         if fget is not None:
             if not hasattr(fget, '__call__'):
                 raise TypeError('fget must be None or a callable, not {}'.format(type(fget)))
-
+            self._desc = True
             self._get = fget
+            _log.debug('Setting fget: {}'.format(fget))
         else:
+            self._desc = False
             self._get = None  # will be set below in set_value
 
         if fset is not None:
             if not hasattr(fset, '__call__'):
                 raise TypeError('fset must be None or a callable, not {}'.format(type(fset)))
 
+        _log.debug('Setting fset: {}'.format(fset))
         self._set = fset
         self._edit = True
 
@@ -202,6 +209,7 @@ class ParamNode(AbstractLeafNode):
         self.set_editable(editable)  # set editable after value to enable value initialization
 
     def __call__(self, fget):
+        self._desc = True
         self._get = fget
         # TODO: return a copy instead?
         return self
@@ -217,7 +225,7 @@ class ParamNode(AbstractLeafNode):
         Descriptors manage access to values that are hold by some other object.
         They do not hold their own values.
         """
-        return isinstance(self._get, (types.MethodType, types.FunctionType))
+        return self._desc
 
     def is_editable(self):
         """Returns a bool indicating whether the underlying param node can be edited."""
@@ -296,8 +304,10 @@ class ParamNode(AbstractLeafNode):
 
         if self.is_descriptor():
             if self.is_unbound():
+                _log.debug('Calling unbound fset({}): {}'.format(value, self._set))
                 self._set(obj, value)
             else:
+                _log.debug('Calling bound fset({}): {}'.format(value, self._set))
                 self._set(value)
 
         else:
